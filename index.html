@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Mafia Game</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #0a0a0a;
+    color: #fff;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* MAIN MENU */
+#main-menu {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a0a2e 50%, #0a0a0a 100%);
+    z-index: 1000;
+}
+
+#main-menu h1 {
+    font-size: 72px;
+    text-transform: uppercase;
+    letter-spacing: 8px;
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, #ff0000, #ff6600, #ff0000);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+    animation: titlePulse 2s infinite;
+}
+
+@keyframes titlePulse {
+    0%, 100% { filter: brightness(1); transform: scale(1); }
+    50% { filter: brightness(1.3); transform: scale(1.02); }
+}
+
+#main-menu h2 {
+    font-size: 18px;
+    color: #888;
+    margin-bottom: 50px;
+    letter-spacing: 4px;
+}
+
+.menu-btn {
+    padding: 15px 40px;
+    margin: 10px;
+    font-size: 18px;
+    border: 2px solid #ff3333;
+    background: rgba(255, 0, 0, 0.1);
+    color: #ff3333;
+    cursor: pointer;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: all 0.3s;
+    min-width: 300px;
+}
+
+.menu-btn:hover {
+    background: rgba(255, 0, 0, 0.3);
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
+}
+
+.menu-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#api-section {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+}
+
+#api-key-input {
+    padding: 12px 20px;
+    width: 400px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid #444;
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+#api-status {
+    color: #ff6666;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.connected {
+    color: #66ff66 !important;
+}
+
+/* GAME CONTAINER */
+#game-container {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+/* 3D SCENE */
+#scene-3d {
+    width: 100%;
+    height: 100%;
+    perspective: 1200px;
+    position: relative;
+    overflow: hidden;
+}
+
+#town-floor {
+    position: absolute;
+    bottom: 0;
+    left: -50%;
+    width: 200%;
+    height: 60%;
+    background: linear-gradient(to top, #1a1a2e, #16213e);
+    transform: rotateX(60deg);
+    transform-origin: bottom;
+}
+
+#sky {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 50%;
+    transition: background 3s;
+}
+
+.sky-day {
+    background: linear-gradient(to bottom, #1a3a5c, #2a4a6c, #3a5a7c);
+}
+
+.sky-night {
+    background: linear-gradient(to bottom, #000011, #000022, #0a0a2e);
+}
+
+/* BUILDINGS */
+.building {
+    position: absolute;
+    bottom: 25%;
+    transform-style: preserve-3d;
+}
+
+.building-face {
+    position: absolute;
+    background: linear-gradient(to top, #1a1a2e, #252545);
+    border: 1px solid #333;
+}
+
+.building-window {
+    position: absolute;
+    width: 12px;
+    height: 16px;
+    background: #ffcc44;
+    opacity: 0.7;
+    transition: opacity 2s;
+}
+
+.window-off {
+    opacity: 0.1;
+    background: #222;
+}
+
+/* MOON & SUN */
+#celestial {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    transition: all 3s;
+    top: 10%;
+    right: 15%;
+}
+
+.sun {
+    background: radial-gradient(circle, #ffdd44, #ff8800);
+    box-shadow: 0 0 40px #ff8800, 0 0 80px #ff660044;
+}
+
+.moon {
+    background: radial-gradient(circle at 35% 35%, #ddd, #999);
+    box-shadow: 0 0 30px #aaaaff44;
+}
+
+/* STARS */
+.star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #fff;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 3s;
+}
+
+.star-visible {
+    opacity: 0.8;
+    animation: twinkle 2s infinite;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 0.3; }
+}
+
+/* CHARACTERS */
+#characters-area {
+    position: absolute;
+    bottom: 5%;
+    left: 0;
+    width: 100%;
+    height: 30%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 0 20px;
+}
+
+.character {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.5s;
+    transform-style: preserve-3d;
+    position: relative;
+}
+
+.character.dead {
+    opacity: 0.2;
+    transform: scale(0.6) rotateZ(45deg);
+    pointer-events: none;
+}
+
+.character.speaking {
+    transform: scale(1.15) translateY(-10px);
+}
+
+.char-body {
+    width: 30px;
+    height: 40px;
+    border-radius: 5px 5px 3px 3px;
+    position: relative;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
+
+.char-head {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    margin-bottom: 2px;
+    position: relative;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+.char-eyes {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+}
+
+.char-eye {
+    width: 3px;
+    height: 4px;
+    background: #111;
+    border-radius: 50%;
+}
+
+.char-name {
+    font-size: 9px;
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: bold;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+.char-role-badge {
+    font-size: 7px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-top: 1px;
+    background: rgba(0,0,0,0.5);
+    display: none;
+}
+
+.speech-bubble {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 10px;
+    max-width: 200px;
+    min-width: 100px;
+    text-align: center;
+    display: none;
+    z-index: 100;
+    line-height: 1.3;
+    word-wrap: break-word;
+}
+
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(0, 0, 0, 0.85);
+}
+
+/* HUD */
+#hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    z-index: 50;
+}
+
+#phase-display {
+    font-size: 24px;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-weight: bold;
+}
+
+.phase-day { color: #ffaa00; }
+.phase-night { color: #6666ff; }
+.phase-voting { color: #ff4444; }
+
+#timer-display {
+    font-size: 36px;
+    font-weight: bold;
+    color: #ff4444;
+    font-family: 'Courier New', monospace;
+}
+
+#day-counter {
+    font-size: 16px;
+    color: #aaa;
+}
+
+/* CHAT LOG */
+#chat-log {
+    position: fixed;
+    right: 0;
+    top: 60px;
+    width: 320px;
+    height: calc(100% - 120px);
+    background: rgba(0, 0, 0, 0.75);
+    border-left: 1px solid #333;
+    overflow-y: auto;
+    padding: 10px;
+    z-index: 50;
+    font-size: 12px;
+}
+
+#chat-log::-webkit-scrollbar {
+    width: 5px;
+}
+
+#chat-log::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
+}
+
+.chat-message {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border-left: 3px solid;
+    background: rgba(255,255,255,0.03);
+    line-height: 1.4;
+    animation: fadeInMsg 0.3s;
+}
+
+@keyframes fadeInMsg {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.chat-sender {
+    font-weight: bold;
+    font-size: 11px;
+}
+
+.chat-text {
+    color: #ccc;
+}
+
+.system-message {
+    color: #ff8888;
+    border-left-color: #ff4444;
+    font-style: italic;
+    text-align: center;
+    background: rgba(255, 0, 0, 0.05);
+}
+
+/* NIGHT OVERLAY */
+#night-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 20, 0.7);
+    z-index: 40;
+    display: none;
+    pointer-events: none;
+}
+
+/* NIGHT ACTION PANEL */
+#night-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(10, 10, 30, 0.95);
+    border: 2px solid #4444aa;
+    border-radius: 10px;
+    padding: 30px;
+    z-index: 60;
+    display: none;
+    min-width: 400px;
+    max-width: 600px;
+    text-align: center;
+}
+
+#night-panel h2 {
+    margin-bottom: 15px;
+    font-size: 22px;
+    letter-spacing: 2px;
+}
+
+#night-panel-content {
+    color: #ccc;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 80px;
+}
+
+/* VOTING PANEL */
+#voting-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: calc(100% - 320px);
+    background: rgba(80, 0, 0, 0.9);
+    padding: 15px;
+    z-index: 55;
+    display: none;
+    border-top: 2px solid #ff4444;
+}
+
+#voting-panel h3 {
+    text-align: center;
+    margin-bottom: 10px;
+    color: #ff6666;
+    letter-spacing: 2px;
+}
+
+#vote-tallies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.vote-entry {
+    padding: 5px 12px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 5px;
+    font-size: 12px;
+    border: 1px solid #444;
+}
+
+/* GAME OVER */
+#game-over {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+#game-over h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+#game-over p {
+    font-size: 24px;
+    color: #aaa;
+    margin-bottom: 30px;
+}
+
+/* ROLE REVEAL */
+#role-reveal-panel {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.9);
+    z-index: 500;
+}
+
+#role-reveal-panel h2 {
+    font-size: 18px;
+    color: #aaa;
+    margin-bottom: 20px;
+}
+
+#revealed-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    max-width: 800px;
+}
+
+.revealed-role {
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-size: 13px;
+    border: 1px solid #444;
+    background: rgba(0,0,0,0.7);
+}
+
+/* Particle effects */
+.particle {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    animation: particleFade 2s forwards;
+}
+
+@keyframes particleFade {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-100px) scale(0); }
+}
+
+/* Loading spinner */
+.loading-dots::after {
+    content: '';
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #chat-log { width: 200px; font-size: 10px; }
+    #voting-panel { width: calc(100% - 200px); }
+    .character { transform: scale(0.8); }
+}
+</style>
+</head>
+<body>
+
+<!-- MAIN MENU -->
+<div id="main-menu">
+    <h1>🔫 MAFIA</h1>
+    <h2>Town of Shadows</h2>
+
+    <button class="menu-btn" id="btn-connect" onclick="toggleApiSection()">🔑 Connect to OpenRouter</button>
+
+    <div id="api-section">
+        <input type="text" id="api-key-input" placeholder="Paste your OpenRouter API key here...">
+        <button class="menu-btn" onclick="connectApi()">Connect</button>
+        <div id="api-status"></div>
+    </div>
+
+    <button class="menu-btn" id="btn-start" onclick="startGame()" disabled>▶ Start Game</button>
+
+    <div style="margin-top: 40px; color: #555; font-size: 12px; max-width: 500px; text-align: center; line-height: 1.6;">
+        <strong>Roles:</strong> 15 Townies • 1 Doctor • 1 Sheriff • 3 Mafia<br>
+        All bots powered by Gemini 2.5 Flash via OpenRouter API
+    </div>
+</div>
+
+<!-- GAME -->
+<div id="game-container">
+    <!-- 3D Scene -->
+    <div id="scene-3d">
+        <div id="sky" class="sky-day"></div>
+        <div id="celestial" class="sun"></div>
+        <div id="town-floor"></div>
+        <div id="characters-area"></div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="day-counter">Day 1</div>
+        <div id="phase-display" class="phase-day">☀ DISCUSSION</div>
+        <div id="timer-display">90</div>
+    </div>
+
+    <!-- Chat Log -->
+    <div id="chat-log"></div>
+
+    <!-- Night Overlay -->
+    <div id="night-overlay"></div>
+
+    <!-- Night Panel -->
+    <div id="night-panel">
+        <h2 id="night-panel-title">🌙 Night Phase</h2>
+        <div id="night-panel-content"></div>
+    </div>
+
+    <!-- Voting Panel -->
+    <div id="voting-panel">
+        <h3>⚖ VOTING IN PROGRESS</h3>
+        <div id="vote-tallies"></div>
+    </div>
+</div>
+
+<!-- Game Over -->
+<div id="game-over">
+    <h1 id="game-over-title"></h1>
+    <p id="game-over-text"></p>
+    <button class="menu-btn" onclick="showRoleReveal()">📋 Reveal All Roles</button>
+    <button class="menu-btn" onclick="location.reload()">🔄 Play Again</button>
+</div>
+
+<!-- Role Reveal -->
+<div id="role-reveal-panel">
+    <h2>All Player Roles</h2>
+    <div id="revealed-roles"></div>
+    <button class="menu-btn" style="margin-top: 20px;" onclick="document.getElementById('role-reveal-panel').style.display='none'">Close</button>
+</div>
+
+<script>
+// ============== CONFIGURATION ==============
+let API_KEY = '';
+const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const MODEL = 'google/gemini-2.5-flash';
+
+const DISCUSSION_TIME = 90;
+const MAFIA_DISCUSS_TIME = 15;
+
+// ============== BOT COLORS/NAMES ==============
+const BOT_COLORS = [
+    { name: 'Crimson',    hex: '#DC143C', dark: '#8B0000' },
+    { name: 'Azure',      hex: '#007FFF', dark: '#003F7F' },
+    { name: 'Emerald',    hex: '#50C878', dark: '#2E7D32' },
+    { name: 'Amber',      hex: '#FFBF00', dark: '#CC9900' },
+    { name: 'Violet',     hex: '#8F00FF', dark: '#5B00A3' },
+    { name: 'Coral',      hex: '#FF7F50', dark: '#CC5533' },
+    { name: 'Teal',       hex: '#008080', dark: '#005555' },
+    { name: 'Magenta',    hex: '#FF00FF', dark: '#AA00AA' },
+    { name: 'Lime',       hex: '#32CD32', dark: '#228B22' },
+    { name: 'Ivory',      hex: '#FFFFF0', dark: '#CCCCBB' },
+    { name: 'Cyan',       hex: '#00FFFF', dark: '#009999' },
+    { name: 'Bronze',     hex: '#CD7F32', dark: '#8B5A2B' },
+    { name: 'Lavender',   hex: '#B57EDC', dark: '#7B4FA2' },
+    { name: 'Scarlet',    hex: '#FF2400', dark: '#AA1800' },
+    { name: 'Silver',     hex: '#C0C0C0', dark: '#808080' },
+    { name: 'Gold',       hex: '#FFD700', dark: '#B8960F' },
+    { name: 'Slate',      hex: '#708090', dark: '#4A5568' },
+    { name: 'Rose',       hex: '#FF007F', dark: '#AA0055' },
+    { name: 'Peach',      hex: '#FFCBA4', dark: '#CC9966' },
+    { name: 'Indigo',     hex: '#4B0082', dark: '#2E004F' },
+];
+
+// ============== GAME STATE ==============
+let players = [];
+let gamePhase = 'menu'; // menu, day, voting, night_sheriff, night_doctor, night_mafia, gameover
+let dayNumber = 0;
+let timer = 0;
+let timerInterval = null;
+let chatHistory = []; // Global conversation memory
+let nightActions = { sheriffTarget: null, sheriffResult: null, doctorTarget: null, mafiaTarget: null };
+let votingResults = {};
+let gameLog = [];
+let speechQueue = [];
+let isSpeaking = false;
+let currentSpeaker = null;
+let aiCallsActive = 0;
+let eliminatedToday = [];
+
+// ============== MENU FUNCTIONS ==============
+function toggleApiSection() {
+    const section = document.getElementById('api-section');
+    section.style.display = section.style.display === 'flex' ? 'none' : 'flex';
+}
+
+function connectApi() {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key) {
+        document.getElementById('api-status').textContent = '❌ Please enter a valid API key';
+        document.getElementById('api-status').className = '';
+        return;
+    }
+    API_KEY = key;
+    document.getElementById('api-status').textContent = '✅ Connected to OpenRouter';
+    document.getElementById('api-status').className = 'connected';
+    document.getElementById('btn-start').disabled = false;
+}
+
+// ============== GAME INITIALIZATION ==============
+function startGame() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
+
+    initializePlayers();
+    buildScene();
+    renderCharacters();
+    createStars();
+
+    dayNumber = 1;
+    document.getElementById('day-counter').textContent = 'Day ' + dayNumber;
+
+    addSystemMessage('🎮 Welcome to Mafia! The game begins...');
+    addSystemMessage(`📋 20 players: 15 Townies, 1 Doctor, 1 Sheriff, 3 Mafia`);
+
+    setTimeout(() => startDayPhase(), 2000);
+}
+
+function initializePlayers() {
+    players = [];
+    let roles = [];
+
+    // Assign roles
+    roles.push('Sheriff');
+    roles.push('Doctor');
+    roles.push('Mafia', 'Mafia', 'Mafia');
+    for (let i = 0; i < 15; i++) roles.push('Townie');
+
+    // Shuffle
+    for (let i = roles.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [roles[i], roles[j]] = [roles[j], roles[i]];
+    }
+
+    for (let i = 0; i < 20; i++) {
+        players.push({
+            id: i,
+            name: BOT_COLORS[i].name,
+            color: BOT_COLORS[i].hex,
+            darkColor: BOT_COLORS[i].dark,
+            role: roles[i],
+            alive: true,
+            memory: [],
+            accusations: {},
+            suspicions: {},
+            knownInfo: []
+        });
+    }
+
+    // Tell mafia who their teammates are
+    const mafiaPlayers = players.filter(p => p.role === 'Mafia');
+    mafiaPlayers.forEach(m => {
+        m.knownInfo.push(`You are Mafia. Your teammates are: ${mafiaPlayers.filter(x => x.id !== m.id).map(x => x.name).join(' and ')}.`);
+    });
+
+    const sheriff = players.find(p => p.role === 'Sheriff');
+    if (sheriff) sheriff.knownInfo.push('You are the Sheriff. Each night you can investigate one player to learn if they are Mafia or not.');
+
+    const doctor = players.find(p => p.role === 'Doctor');
+    if (doctor) doctor.knownInfo.push('You are the Doctor. Each night you can protect one player from being killed.');
+}
+
+// ============== 3D SCENE ==============
+function buildScene() {
+    const scene = document.getElementById('scene-3d');
+
+    // Buildings
+    const buildingConfigs = [
+        { left: '3%', w: 80, h: 180 },
+        { left: '12%', w: 60, h: 140 },
+        { left: '22%', w: 90, h: 200 },
+        { left: '75%', w: 70, h: 160 },
+        { left: '85%', w: 85, h: 190 },
+        { left: '65%', w: 55, h: 130 },
+    ];
+
+    buildingConfigs.forEach(cfg => {
+        const building = document.createElement('div');
+        building.className = 'building';
+        building.style.left = cfg.left;
+        building.style.width = cfg.w + 'px';
+        building.style.height = cfg.h + 'px';
+        building.style.background = `linear-gradient(to top, #1a1a2e, #252545)`;
+        building.style.border = '1px solid #333';
+
+        // Windows
+        const cols = Math.floor(cfg.w / 25);
+        const rows = Math.floor(cfg.h / 30);
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const win = document.createElement('div');
+                win.className = 'building-window' + (Math.random() > 0.5 ? ' window-off' : '');
+                win.style.left = (10 + c * 22) + 'px';
+                win.style.bottom = (10 + r * 28) + 'px';
+                building.appendChild(win);
+            }
+        }
+
+        scene.appendChild(building);
+    });
+}
+
+function createStars() {
+    const scene = document.getElementById('scene-3d');
+    for (let i = 0; i < 80; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 40 + '%';
+        star.style.animationDelay = Math.random() * 3 + 's';
+        scene.appendChild(star);
+    }
+}
+
+function setDayVisuals() {
+    document.getElementById('sky').className = 'sky-day';
+    document.getElementById('celestial').className = 'sun';
+    document.getElementById('night-overlay').style.display = 'none';
+
+    document.querySelectorAll('.building-window').forEach(w => {
+        w.classList.toggle('window-off', Math.random() > 0.6);
+    });
+    document.querySelectorAll('.star').forEach(s => s.classList.remove('star-visible'));
+}
+
+function setNightVisuals() {
+    document.getElementById('sky').className = 'sky-night';
+    document.getElementById('celestial').className = 'moon';
+    document.getElementById('night-overlay').style.display = 'block';
+
+    document.querySelectorAll('.building-window').forEach(w => {
+        w.classList.toggle('window-off', Math.random() > 0.3);
+    });
+    document.querySelectorAll('.star').forEach(s => s.classList.add('star-visible'));
+}
+
+// ============== CHARACTER RENDERING ==============
+function renderCharacters() {
+    const area = document.getElementById('characters-area');
+    area.innerHTML = '';
+
+    players.forEach(p => {
+        const char = document.createElement('div');
+        char.className = 'character' + (p.alive ? '' : ' dead');
+        char.id = 'char-' + p.id;
+
+        const head = document.createElement('div');
+        head.className = 'char-head';
+        head.style.background = p.alive ? p.color : '#444';
+
+        const eyes = document.createElement('div');
+        eyes.className = 'char-eyes';
+        eyes.innerHTML = '<div class="char-eye"></div><div class="char-eye"></div>';
+        head.appendChild(eyes);
+
+        const body = document.createElement('div');
+        body.className = 'char-body';
+        body.style.background = p.alive ? p.darkColor : '#333';
+
+        const name = document.createElement('div');
+        name.className = 'char-name';
+        name.style.color = p.color;
+        name.textContent = p.name;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'speech-bubble';
+        bubble.id = 'bubble-' + p.id;
+        bubble.style.borderColor = p.color;
+
+        char.appendChild(bubble);
+        char.appendChild(head);
+        char.appendChild(body);
+        char.appendChild(name);
+
+        area.appendChild(char);
+    });
+}
+
+// ============== CHAT & SPEECH ==============
+function addChatMessage(player, text) {
+    const log = document.getElementById('chat-log');
+    const msg = document.createElement('div');
+    msg.className = 'chat-message';
+    msg.style.borderLeftColor = player.color;
+    msg.innerHTML = `<span class="chat-sender" style="color:${player.color}">${player.name}:</span> <span class="chat-text">${text}</span>`;
+    log.appendChild(msg);
+    log.scrollTop = log.scrollHeight;
+
+    // Show speech bubble
+    showBubble(player, text);
+
+    // Memory
+    const memEntry = `[Day ${dayNumber}] ${player.name}: ${text}`;
+    chatHistory.push(memEntry);
+    player.memory.push(memEntry);
+
+    // Text to speech
+    queueSpeech(player, text);
+}
+
+function addSystemMessage(text) {
+    const log = document.getElementById('chat-log');
+    const msg = document.createElement('div');
+    msg.className = 'chat-message system-message';
+    msg.textContent = text;
+    log.appendChild(msg);
+    log.scrollTop = log.scrollHeight;
+
+    chatHistory.push(`[SYSTEM] ${text}`);
+}
+
+function showBubble(player, text) {
+    // Hide all bubbles
+    document.querySelectorAll('.speech-bubble').forEach(b => b.style.display = 'none');
+    document.querySelectorAll('.character').forEach(c => c.classList.remove('speaking'));
+
+    const bubble = document.getElementById('bubble-' + player.id);
+    const char = document.getElementById('char-' + player.id);
+    if (bubble && char) {
+        bubble.textContent = text.length > 80 ? text.substring(0, 77) + '...' : text;
+        bubble.style.display = 'block';
+        char.classList.add('speaking');
+
+        setTimeout(() => {
+            bubble.style.display = 'none';
+            char.classList.remove('speaking');
+        }, 5000);
+    }
+}
+
+function queueSpeech(player, text) {
+    speechQueue.push({ player, text });
+    if (!isSpeaking) processNextSpeech();
+}
+
+function processNextSpeech() {
+    if (speechQueue.length === 0) {
+        isSpeaking = false;
+        return;
+    }
+
+    isSpeaking = true;
+    const { player, text } = speechQueue.shift();
+
+    if ('speechSynthesis' in window) {
+        // Cancel any existing speech
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.2;
+        utterance.pitch = 0.8 + (player.id % 5) * 0.15;
+        utterance.volume = 0.7;
+
+        // Vary voice
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+            utterance.voice = voices[player.id % voices.length];
+        }
+
+        utterance.onend = () => {
+            setTimeout(() => processNextSpeech(), 300);
+        };
+        utterance.onerror = () => {
+            setTimeout(() => processNextSpeech(), 300);
+        };
+
+        window.speechSynthesis.speak(utterance);
+    } else {
+        setTimeout(() => processNextSpeech(), 1500);
+    }
+}
+
+// ============== AI API CALLS ==============
+async function callAI(systemPrompt, userPrompt, maxTokens = 150) {
+    if (!API_KEY) return "I have nothing to say right now.";
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://mafia-game.local',
+                'X-Title': 'Mafia Game'
+            },
+            body: JSON.stringify({
+                model: MODEL,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                max_tokens: maxTokens,
+                temperature: 0.9,
+                top_p: 0.9
+            })
+        });
+
+        const data = await response.json();
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+            return data.choices[0].message.content.trim();
+        }
+        return "Hmm, I'm not sure what to say.";
+    } catch (error) {
+        console.error('AI API Error:', error);
+        return "I think we should focus on finding the mafia.";
+    }
+}
+
+// ============== DAY PHASE ==============
+function startDayPhase() {
+    gamePhase = 'day';
+    setDayVisuals();
+
+    document.getElementById('phase-display').textContent = '☀ DISCUSSION';
+    document.getElementById('phase-display').className = 'phase-day';
+    document.getElementById('day-counter').textContent = 'Day ' + dayNumber;
+
+    addSystemMessage(`━━━ ☀ Day ${dayNumber} - Discussion Phase (90s) ━━━`);
+
+    timer = DISCUSSION_TIME;
+    updateTimerDisplay();
+
+    timerInterval = setInterval(() => {
+        timer--;
+        updateTimerDisplay();
+        if (timer <= 0) {
+            clearInterval(timerInterval);
+            startVotingPhase();
+        }
+    }, 1000);
+
+    // Start AI discussions
+    runDayDiscussion();
+}
+
+async function runDayDiscussion() {
+    const alivePlayers = players.filter(p => p.alive);
+    let talkOrder = shuffle([...alivePlayers]);
+    let talkIndex = 0;
+
+    const discussionLoop = async () => {
+        if (gamePhase !== 'day' || timer <= 5) return;
+
+        const speaker = talkOrder[talkIndex % talkOrder.length];
+        talkIndex++;
+
+        if (!speaker.alive) {
+            setTimeout(discussionLoop, 500);
+            return;
+        }
+
+        const recentChat = chatHistory.slice(-15).join('\n');
+        const playerMemory = speaker.memory.slice(-10).join('\n');
+        const knownInfo = speaker.knownInfo.join('\n');
+        const deadPlayers = players.filter(p => !p.alive).map(p => p.name).join(', ') || 'None yet';
+
+        let systemPrompt = `You are ${speaker.name} in a Mafia game. Your role is ${speaker.role}. 
+You are having a group discussion during the day to figure out who the Mafia members are.
+ALIVE PLAYERS: ${alivePlayers.map(p => p.name).join(', ')}
+DEAD PLAYERS: ${deadPlayers}
+DAY: ${dayNumber}
+
+YOUR PRIVATE INFORMATION:
+${knownInfo}
+
+RULES:
+- Speak naturally in 1-2 short sentences
+- Respond to what others have said
+- If you're Mafia, deflect suspicion and subtly cast doubt on innocents without being obvious
+- If you're Town/Sheriff/Doctor, try to identify Mafia based on behavior
+- React to accusations and defend yourself if accused
+- You can accuse others if you find them suspicious
+- Connect dots from previous discussions
+- NEVER reveal you are Mafia if you are Mafia
+- If you are Sheriff and have investigation results, you may choose to reveal them (risky but helpful)
+- Keep responses SHORT (1-2 sentences max)`;
+
+        let userPrompt = `Recent conversation:\n${recentChat}\n\nYour memories:\n${playerMemory}\n\nIt's your turn to speak. Say something relevant to the discussion. Remember to react to what others said.`;
+
+        try {
+            const response = await callAI(systemPrompt, userPrompt, 80);
+            if (gamePhase === 'day' && speaker.alive) {
+                // Clean response
+                let cleanResponse = response.replace(/^["']|["']$/g, '').replace(/^\*.*?\*\s*/, '');
+                if (cleanResponse.length > 200) cleanResponse = cleanResponse.substring(0, 197) + '...';
+                addChatMessage(speaker, cleanResponse);
+
+                // Track accusations
+                alivePlayers.forEach(other => {
+                    if (other.id !== speaker.id && cleanResponse.toLowerCase().includes(other.name.toLowerCase())) {
+                        const accuseWords = ['suspicious', 'suspect', 'mafia', 'kill', 'vote', 'lying', 'sus', 'guilty', 'eliminate', 'accuse'];
+                        if (accuseWords.some(w => cleanResponse.toLowerCase().includes(w))) {
+                            speaker.accusations[other.name] = (speaker.accusations[other.name] || 0) + 1;
+                        }
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Discussion error:', e);
+        }
+
+        // Next speaker after delay
+        const delay = 4000 + Math.random() * 3000;
+        if (gamePhase === 'day' && timer > 5) {
+            setTimeout(discussionLoop, delay);
+        }
+    };
+
+    setTimeout(discussionLoop, 2000);
+}
+
+// ============== VOTING PHASE ==============
+async function startVotingPhase() {
+    gamePhase = 'voting';
+    speechQueue = [];
+    window.speechSynthesis.cancel();
+
+    document.getElementById('phase-display').textContent = '⚖ VOTING';
+    document.getElementById('phase-display').className = 'phase-voting';
+    document.getElementById('voting-panel').style.display = 'block';
+
+    addSystemMessage('━━━ ⚖ Voting Phase - Everyone votes! ━━━');
+
+    const alivePlayers = players.filter(p => p.alive);
+    votingResults = {};
+    alivePlayers.forEach(p => votingResults[p.name] = 0);
+
+    // Each player votes using AI
+    for (const voter of alivePlayers) {
+        const recentChat = chatHistory.slice(-20).join('\n');
+        const accusations = Object.entries(voter.accusations)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, count]) => `${name} (accused ${count} times)`)
+            .join(', ');
+
+        const systemPrompt = `You are ${voter.name} in a Mafia game. Your role is ${voter.role}.
+You must vote to eliminate ONE player you think is Mafia.
+${voter.knownInfo.join('\n')}
+
+ALIVE PLAYERS (choose one): ${alivePlayers.filter(p => p.id !== voter.id).map(p => p.name).join(', ')}
+
+Your accusations record: ${accusations || 'None'}
+
+If you are Mafia, vote for a townie to eliminate them. Don't vote for your Mafia teammates.
+Respond with ONLY the name of the player you vote for, nothing else.`;
+
+        const userPrompt = `Recent discussion:\n${recentChat}\n\nWho do you vote to eliminate? Reply with ONLY their name.`;
+
+        try {
+            const response = await callAI(systemPrompt, userPrompt, 20);
+            const votedName = alivePlayers.find(p =>
+                p.id !== voter.id && response.toLowerCase().includes(p.name.toLowerCase())
+            );
+
+            if (votedName && votingResults[votedName.name] !== undefined) {
+                votingResults[votedName.name]++;
+                addSystemMessage(`${voter.name} votes for ${votedName.name}`);
+            } else {
+                // Random vote if AI response invalid
+                const targets = alivePlayers.filter(p => p.id !== voter.id);
+                const randomTarget = targets[Math.floor(Math.random() * targets.length)];
+                votingResults[randomTarget.name]++;
+                addSystemMessage(`${voter.name} votes for ${randomTarget.name}`);
+            }
+
+            updateVoteTallies();
+        } catch (e) {
+            console.error('Voting error:', e);
+        }
+
+        await sleep(800);
+    }
+
+    // Determine result
+    await sleep(1500);
+    resolveVoting();
+}
+
+function updateVoteTallies() {
+    const container = document.getElementById('vote-tallies');
+    container.innerHTML = '';
+
+    const sorted = Object.entries(votingResults).sort((a, b) => b[1] - a[1]);
+    sorted.forEach(([name, votes]) => {
+        if (votes > 0) {
+            const player = players.find(p => p.name === name);
+            const entry = document.createElement('div');
+            entry.className = 'vote-entry';
+            entry.style.borderColor = player ? player.color : '#fff';
+            entry.innerHTML = `<span style="color:${player ? player.color : '#fff'}">${name}</span>: ${votes} vote${votes !== 1 ? 's' : ''}`;
+            container.appendChild(entry);
+        }
+    });
+}
+
+function resolveVoting() {
+    const sorted = Object.entries(votingResults).sort((a, b) => b[1] - a[1]);
+
+    if (sorted.length > 0 && sorted[0][1] > 0) {
+        // Check for tie
+        if (sorted.length > 1 && sorted[0][1] === sorted[1][1]) {
+            addSystemMessage('⚖ The vote is tied! No one is eliminated.');
+        } else {
+            const eliminatedName = sorted[0][0];
+            const eliminated = players.find(p => p.name === eliminatedName);
+            if (eliminated) {
+                eliminated.alive = false;
+                addSystemMessage(`☠ ${eliminated.name} has been eliminated! They were a ${eliminated.role}.`);
+                renderCharacters();
+
+                if (checkWinCondition()) return;
+            }
+        }
+    }
+
+    document.getElementById('voting-panel').style.display = 'none';
+
+    setTimeout(() => startNightPhase(), 2000);
+}
+
+// ============== NIGHT PHASE ==============
+async function startNightPhase() {
+    gamePhase = 'night_sheriff';
+    setNightVisuals();
+    speechQueue = [];
+    window.speechSynthesis.cancel();
+
+    document.getElementById('phase-display').textContent = '🌙 NIGHT';
+    document.getElementById('phase-display').className = 'phase-night';
+    document.getElementById('timer-display').textContent = '🌙';
+
+    addSystemMessage(`━━━ 🌙 Night ${dayNumber} - Everyone closes their eyes ━━━`);
+
+    nightActions = { sheriffTarget: null, sheriffResult: null, doctorTarget: null, mafiaTarget: null };
+
+    await sleep(1500);
+
+    // Sheriff investigates
+    await sheriffPhase();
+
+    // Doctor protects
+    await doctorPhase();
+
+    // Mafia kills
+    await mafiaPhase();
+
+    // Resolve night
+    resolveNight();
+}
+
+async function sheriffPhase() {
+    const sheriff = players.find(p => p.role === 'Sheriff' && p.alive);
+    if (!sheriff) {
+        addSystemMessage('The Sheriff is dead. Investigation skipped.');
+        await sleep(1000);
+        return;
+    }
+
+    document.getElementById('night-panel').style.display = 'block';
+    document.getElementById('night-panel-title').textContent = '🔍 Sheriff Investigation';
+    document.getElementById('night-panel-content').innerHTML = `<span class="loading-dots">${sheriff.name} is investigating</span>`;
+
+    const alivePlayers = players.filter(p => p.alive && p.id !== sheriff.id);
+    const prevInvestigations = sheriff.knownInfo.filter(k => k.includes('investigated')).join('\n');
+
+    const systemPrompt = `You are ${sheriff.name}, the Sheriff in a Mafia game.
+It is night time. You must choose ONE alive player to investigate.
+You will learn if they are Mafia or not.
+
+ALIVE PLAYERS (choose one): ${alivePlayers.map(p => p.name).join(', ')}
+
+Previous investigations:
+${prevInvestigations || 'None yet'}
+
+Recent discussion:
+${chatHistory.slice(-15).join('\n')}
+
+Choose who to investigate and explain why in 1-2 sentences. Format: "INVESTIGATE: [Name]. [Reason]"`;
+
+    try {
+        const response = await callAI(systemPrompt, `Who do you want to investigate tonight?`, 80);
+
+        const target = alivePlayers.find(p => response.toLowerCase().includes(p.name.toLowerCase()));
+
+        if (target) {
+            nightActions.sheriffTarget = target;
+            const isMafia = target.role === 'Mafia';
+            nightActions.sheriffResult = isMafia;
+
+            const resultText = isMafia ? '🔴 MAFIA' : '🟢 NOT MAFIA';
+            const infoEntry = `Night ${dayNumber}: You investigated ${target.name} - they are ${isMafia ? 'MAFIA!' : 'NOT Mafia (innocent)'}`;
+            sheriff.knownInfo.push(infoEntry);
+
+            document.getElementById('night-panel-content').innerHTML =
+                `<p style="color:${sheriff.color}">${sheriff.name} investigates <strong>${target.name}</strong></p>
+                 <p style="margin-top:10px; font-size:18px;">${resultText}</p>
+                 <p style="margin-top:5px; color:#888; font-size:12px;">${response}</p>`;
+
+            addChatMessage(sheriff, `*privately investigates ${target.name}*`);
+        } else {
+            document.getElementById('night-panel-content').textContent = 'Sheriff could not decide who to investigate.';
+        }
+    } catch (e) {
+        console.error('Sheriff phase error:', e);
+    }
+
+    await sleep(4000);
+    document.getElementById('night-panel').style.display = 'none';
+}
+
+async function doctorPhase() {
+    const doctor = players.find(p => p.role === 'Doctor' && p.alive);
+    if (!doctor) {
+        addSystemMessage('The Doctor is dead. Protection skipped.');
+        await sleep(1000);
+        return;
+    }
+
+    document.getElementById('night-panel').style.display = 'block';
+    document.getElementById('night-panel-title').textContent = '💊 Doctor Protection';
+    document.getElementById('night-panel-content').innerHTML = `<span class="loading-dots">${doctor.name} is choosing who to protect</span>`;
+
+    const alivePlayers = players.filter(p => p.alive);
+
+    const systemPrompt = `You are ${doctor.name}, the Doctor in a Mafia game.
+It is night time. You must choose ONE alive player to protect from the Mafia's kill tonight.
+You can protect yourself too.
+
+ALIVE PLAYERS: ${alivePlayers.map(p => p.name).join(', ')}
+
+Recent discussion (use this to figure out who might be targeted):
+${chatHistory.slice(-15).join('\n')}
+
+Choose who to protect and explain why briefly. Format: "PROTECT: [Name]. [Reason]"`;
+
+    try {
+        const response = await callAI(systemPrompt, `Who do you want to protect tonight?`, 80);
+        const target = alivePlayers.find(p => response.toLowerCase().includes(p.name.toLowerCase()));
+
+        if (target) {
+            nightActions.doctorTarget = target;
+            document.getElementById('night-panel-content').innerHTML =
+                `<p style="color:${doctor.color}">${doctor.name} protects <strong style="color:${target.color}">${target.name}</strong></p>
+                 <p style="margin-top:5px; color:#888; font-size:12px;">${response}</p>`;
+        } else {
+            // Protect self
+            nightActions.doctorTarget = doctor;
+            document.getElementById('night-panel-content').innerHTML =
+                `<p style="color:${doctor.color}">${doctor.name} protects themselves</p>`;
+        }
+    } catch (e) {
+        console.error('Doctor phase error:', e);
+    }
+
+    await sleep(3000);
+    document.getElementById('night-panel').style.display = 'none';
+}
+
+async function mafiaPhase() {
+    gamePhase = 'night_mafia';
+    const mafiaPlayers = players.filter(p => p.role === 'Mafia' && p.alive);
+
+    if (mafiaPlayers.length === 0) return;
+
+    document.getElementById('night-panel').style.display = 'block';
+    document.getElementById('night-panel-title').textContent = '🔪 Mafia Discussion';
+    document.getElementById('night-panel-content').innerHTML = `<span class="loading-dots">The Mafia is discussing their kill (${MAFIA_DISCUSS_TIME}s)</span>`;
+
+    addSystemMessage('🔪 The Mafia wakes up and discusses...');
+
+    timer = MAFIA_DISCUSS_TIME;
+    updateTimerDisplay();
+
+    // Mafia discussion
+    let mafiaChat = [];
+
+    const discussionInterval = setInterval(async () => {
+        timer--;
+        updateTimerDisplay();
+        if (timer <= 0) clearInterval(discussionInterval);
+    }, 1000);
+
+    // Each mafia member speaks
+    for (const mafia of mafiaPlayers) {
+        if (timer <= 2) break;
+
+        const aliveTownies = players.filter(p => p.alive && p.role !== 'Mafia');
+        const teammates = mafiaPlayers.filter(p => p.id !== mafia.id && p.alive).map(p => p.name).join(', ');
+
+        const systemPrompt = `You are ${mafia.name}, a Mafia member. Your alive teammates: ${teammates || 'none'}.
+You are secretly discussing with your Mafia team who to kill tonight.
+The town players alive: ${aliveTownies.map(p => p.name).join(', ')}
+
+Priority targets: Sheriff and Doctor are most dangerous. Try to identify and kill them.
+Avoid killing someone the town already suspects (to frame them as "they must be innocent since mafia killed them").
+
+Recent game chat:
+${chatHistory.slice(-10).join('\n')}
+
+Mafia discussion so far:
+${mafiaChat.join('\n') || 'No one has spoken yet.'}
+
+Suggest who to kill and why in 1-2 sentences. Be strategic.`;
+
+        try {
+            const response = await callAI(systemPrompt, 'Who should we kill tonight?', 60);
+            mafiaChat.push(`${mafia.name}: ${response}`);
+
+            document.getElementById('night-panel-content').innerHTML =
+                `<p style="color:#ff4444; margin-bottom:10px;">Mafia Discussion (${timer}s remaining)</p>` +
+                mafiaChat.map(c => {
+                    const name = c.split(':')[0];
+                    const p = players.find(pl => pl.name === name);
+                    return `<p style="color:${p ? p.color : '#ccc'}; font-size:13px; margin:3px 0;">${c}</p>`;
+                }).join('');
+
+            addChatMessage(mafia, `*whispers to fellow mafia* ${response}`);
+        } catch (e) {
+            console.error('Mafia discussion error:', e);
+        }
+
+        await sleep(3000);
+    }
+
+    // Final kill decision
+    clearInterval(discussionInterval);
+
+    const lastMafia = mafiaPlayers[mafiaPlayers.length - 1];
+    const aliveTownies = players.filter(p => p.alive && p.role !== 'Mafia');
+
+    const decisionPrompt = `You are the Mafia making a final kill decision.
+Mafia discussion:
+${mafiaChat.join('\n')}
+
+Available targets: ${aliveTownies.map(p => p.name).join(', ')}
+
+Reply with ONLY the name of who to kill. Nothing else.`;
+
+    try {
+        const response = await callAI(
+            'You are the Mafia. Choose the final kill target. Reply with ONLY the player name.',
+            decisionPrompt, 20
+        );
+
+        const target = aliveTownies.find(p => response.toLowerCase().includes(p.name.toLowerCase()));
+        nightActions.mafiaTarget = target || aliveTownies[Math.floor(Math.random() * aliveTownies.length)];
+    } catch (e) {
+        nightActions.mafiaTarget = aliveTownies[Math.floor(Math.random() * aliveTownies.length)];
+    }
+
+    document.getElementById('night-panel').style.display = 'none';
+}
+
+function resolveNight() {
+    addSystemMessage(`━━━ 🌅 Dawn breaks... ━━━`);
+
+    const target = nightActions.mafiaTarget;
+    const protected_ = nightActions.doctorTarget;
+
+    if (target) {
+        if (protected_ && target.id === protected_.id) {
+            addSystemMessage(`💊 ${target.name} was attacked but the Doctor saved them!`);
+            target.memory.push(`Night ${dayNumber}: Someone tried to kill me but I was saved by the Doctor!`);
+        } else {
+            target.alive = false;
+            addSystemMessage(`☠ ${target.name} was killed during the night! They were a ${target.role}.`);
+            renderCharacters();
+        }
+    }
+
+    // Sheriff info
+    if (nightActions.sheriffTarget && nightActions.sheriffResult !== null) {
+        const sheriff = players.find(p => p.role === 'Sheriff' && p.alive);
+        if (sheriff) {
+            const resultStr = nightActions.sheriffResult ? 'IS MAFIA' : 'is NOT Mafia';
+            sheriff.memory.push(`[Private] Night ${dayNumber}: Investigated ${nightActions.sheriffTarget.name} - ${resultStr}`);
+        }
+    }
+
+    if (checkWinCondition()) return;
+
+    dayNumber++;
+
+    setTimeout(() => startDayPhase(), 3000);
+}
+
+// ============== WIN CONDITION ==============
+function checkWinCondition() {
+    const aliveMafia = players.filter(p => p.alive && p.role === 'Mafia').length;
+    const aliveTown = players.filter(p => p.alive && p.role !== 'Mafia').length;
+
+    if (aliveMafia === 0) {
+        endGame('town');
+        return true;
+    }
+
+    if (aliveMafia >= aliveTown) {
+        endGame('mafia');
+        return true;
+    }
+
+    return false;
+}
+
+function endGame(winner) {
+    gamePhase = 'gameover';
+    clearInterval(timerInterval);
+    speechQueue = [];
+    window.speechSynthesis.cancel();
+
+    const overlay = document.getElementById('game-over');
+    overlay.style.display = 'flex';
+
+    if (winner === 'town') {
+        document.getElementById('game-over-title').textContent = '🏆 TOWN WINS!';
+        document.getElementById('game-over-title').style.color = '#66ff66';
+        document.getElementById('game-over-text').textContent = 'All Mafia members have been eliminated!';
+    } else {
+        document.getElementById('game-over-title').textContent = '💀 MAFIA WINS!';
+        document.getElementById('game-over-title').style.color = '#ff4444';
+        document.getElementById('game-over-text').textContent = 'The Mafia has taken over the town!';
+    }
+}
+
+function showRoleReveal() {
+    const panel = document.getElementById('role-reveal-panel');
+    const container = document.getElementById('revealed-roles');
+    container.innerHTML = '';
+
+    players.forEach(p => {
+        const entry = document.createElement('div');
+        entry.className = 'revealed-role';
+        entry.style.borderColor = p.color;
+
+        let roleColor = '#aaa';
+        if (p.role === 'Mafia') roleColor = '#ff4444';
+        else if (p.role === 'Sheriff') roleColor = '#44aaff';
+        else if (p.role === 'Doctor') roleColor = '#44ff44';
+
+        entry.innerHTML = `
+            <span style="color:${p.color}; font-weight:bold;">${p.name}</span>
+            <span style="color:${roleColor}"> — ${p.role}</span>
+            <span style="color:#666"> ${p.alive ? '(alive)' : '(dead)'}</span>
+        `;
+        container.appendChild(entry);
+    });
+
+    panel.style.display = 'flex';
+}
+
+// ============== UTILITIES ==============
+function updateTimerDisplay() {
+    const display = document.getElementById('timer-display');
+    if (gamePhase === 'night_sheriff' || gamePhase === 'night_doctor') {
+        display.textContent = '🌙';
+    } else {
+        display.textContent = timer;
+        if (timer <= 10) display.style.color = '#ff0000';
+        else display.style.color = '#ff4444';
+    }
+}
+
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Load voices
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+    };
+}
+</script>
+</body>
+</html>
